@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Admin</title>
+  <style>
+    body { font-family: Arial; background: #0d0d0d; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .box { background: #1a1a1a; padding: 40px; border-radius: 12px; width: 320px; }
+    h2 { margin-top: 0; color: #d4af37; }
+    input { width: 100%; padding: 12px; margin: 8px 0; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: white; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #d4af37; color: black; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .erro { color: #ff6b6b; margin-top: 10px; min-height: 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>🔒 Acesso Admin</h2>
+    <input type="text" id="username" placeholder="Usuário" autocomplete="username">
+    <input type="password" id="password" placeholder="Senha" autocomplete="current-password">
+    <button onclick="login()">Entrar</button>
+    <div class="erro" id="erro"></div>
+  </div>
+
+  <script>
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const erroDiv = document.getElementById('erro');
+      erroDiv.textContent = '';
+
+      if (!username || !password) {
+        erroDiv.textContent = 'Preencha usuário e senha.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          erroDiv.textContent = data.error || 'Erro ao entrar.';
+          return;
+        }
+
+        localStorage.setItem('admin_token', data.token);
+        localStorage.setItem('admin_username', data.username);
+        window.location.href = 'admin.html';
+      } catch (e) {
+        erroDiv.textContent = 'Erro de conexão com o servidor.';
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>

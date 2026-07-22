@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão - MSAS</title>
+  <style>
+    body { font-family: Arial; background: #0d0d0d; color: white; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 12px; border-bottom: 1px solid #333; text-align: left; }
+    th { background: #1a1a1a; }
+    .tab { padding: 12px 24px; background: #333; margin-right: 5px; cursor: pointer; border-radius: 6px; }
+    .tab.active { background: #d4af37; color: black; font-weight: bold; }
+    button { padding: 6px 12px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-edit { background: #f1c40f; color: black; }
+    .btn-delete { background: #e74c3c; color: white; }
+    img { max-width: 80px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>📊 Painel de Gestão</h1>
+  
+  <div>
+    <span class="tab active" onclick="showTab(0)">Agendamentos</span>
+    <span class="tab" onclick="showTab(1)">Estoque</span>
+  </div>
+
+  <!-- Agendamentos -->
+  <div id="tab0">
+    <h2>Agendamentos</h2>
+    <table id="bookingsTable"></table>
+  </div>
+
+  <!-- Estoque -->
+  <div id="tab1" style="display:none;">
+    <h2>Estoque</h2>
+    
+    <div style="margin-bottom:20px;">
+      <h3>Cadastrar Novo Produto</h3>
+      <input type="text" id="productName" placeholder="Nome do produto">
+      <input type="number" id="productPrice" placeholder="Preço" step="0.01">
+      <input type="number" id="productStock" placeholder="Estoque inicial" value="10">
+      <input type="file" id="productImage" accept="image/*">
+      <button onclick="addProductWithImage()">+ Adicionar Produto</button>
+    </div>
+
+    <table id="stockTable"></table>
+  </div>
+
+  <script>
+    const API_BOOKINGS = 'http://localhost:3000/api/bookings';
+    const API_PRODUCTS = 'http://localhost:3000/api/products';
+
+    async function loadBookings() {
+      const res = await fetch(API_BOOKINGS);
+      const bookings = await res.json();
+      const tbody = document.getElementById('bookingsTable');
+      tbody.innerHTML = `<tr><th>Data</th><th>Hora</th><th>Serviço</th><th>Cliente</th><th>Telefone</th><th>Status</th><th>Ações</th></tr>`;
+
+      bookings.forEach(b => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${b.date}</td>
+          <td>${b.time}</td>
+          <td>${b.service}</td>
+          <td>${b.name}</td>
+          <td>${b.phone}</td>
+          <td>${b.status}</td>
+          <td>
+            <button class="btn-edit" onclick="updateStatus(${b.id}, 'confirmado')">Confirmar</button>
+            <button class="btn-delete" onclick="deleteBooking(${b.id})">Cancelar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function updateStatus(id, status) {
+      await fetch(`${API_BOOKINGS}/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status})
+      });
+      loadBookings();
+    }
+
+    async function deleteBooking(id) {
+      if (confirm('Cancelar agendamento?')) {
+        await fetch(`${API_BOOKINGS}/${id}`, { method: 'DELETE' });
+        loadBookings();
+      }
+    }
+
+    async function loadStock() {
+      const res = await fetch(API_PRODUCTS);
+      const products = await res.json();
+      const tbody = document.getElementById('stockTable');
+      tbody.innerHTML = `<tr><th>Imagem</th><th>Produto</th><th>Preço</th><th>Estoque</th><th>Ações</th></tr>`;
+
+      products.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.image_url ? `<img src="${p.image_url}" alt="${p.name}">` : 'Sem imagem'}</td>
+          <td>${p.name}</td>
+          <td>R$ ${p.price}</td>
+          <td>${p.stock}</td>
+          <td><button class="btn-delete" onclick="deleteProduct(${p.id})">Excluir</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function addProductWithImage() {
+      const name = document.getElementById('productName').value.trim();
+      const price = parseFloat(document.getElementById('productPrice').value);
+      const stock = parseInt(document.getElementById('productStock').value);
+      const fileInput = document.getElementById('productImage');
+
+      if (!name || isNaN(price)) return alert('Nome e preço são obrigatórios!');
+
+      let imageUrl = null;
+      if (fileInput.files.length > 0) {
+        imageUrl = URL.createObjectURL(fileInput.files[0]);
+      }
+
+      await fetch(API_PRODUCTS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price, stock, image_url: imageUrl })
+      });
+
+      document.getElementById('productName').value = '';
+      document.getElementById('productPrice').value = '';
+      document.getElementById('productStock').value = '10';
+      document.getElementById('productImage').value = '';
+
+      loadStock();
+    }
+
+    async function deleteProduct(id) {
+      if (confirm('Excluir produto?')) {
+        await fetch(`${API_PRODUCTS}/${id}`, { method: 'DELETE' });
+        loadStock();
+      }
+    }
+
+    function showTab(n) {
+      document.getElementById('tab0').style.display = n === 0 ? 'block' : 'none';
+      document.getElementById('tab1').style.display = n === 1 ? 'block' : 'none';
+    }
+
+    window.onload = () => {
+      loadBookings();
+      loadStock();
+    };
+  </script>
+</body>
+</html>

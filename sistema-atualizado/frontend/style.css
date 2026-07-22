@@ -1,0 +1,249 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0d0d0d;
+  color: white;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* INTRO */
+#intro {
+  position: fixed;
+  overflow: hidden;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100dvh;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: all 1s ease;
+}
+
+#intro h1 {
+  color: #d4af37;
+  font-size: clamp(28px, 8vw, 50px);
+  text-align: center;
+  padding: 0 20px;
+}
+
+#intro.shrink {
+  height: 60px;
+}
+
+#intro.shrink h1 {
+  font-size: 20px;
+}
+
+/* HERO */
+.hero {
+  height: 100vh;
+  background: linear-gradient(#000000cc, #000000cc),
+              url('https://i.pinimg.com/736x/74/71/4d/74714da5fce13793e24f9b9e80f4ee6a.jpg');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(24px, 5vw, 42px);
+  padding: 0 15px;
+}
+
+.hero p {
+  padding: 0 20px;
+}
+
+/* BOTÃO */
+.btn {
+  background: linear-gradient(45deg, #d4af37, #f1c40f);
+  color: black;
+  padding: 15px 30px;
+  margin-top: 20px;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  position: relative;
+  overflow: hidden;
+  width: 80%;
+  max-width: 300px;
+  display: inline-block;
+  z-index: 1;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn span {
+  position: relative;
+  z-index: 2;
+}
+
+.btn::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
+  transition: left 0.6s ease;
+  z-index: 1;
+}
+
+.btn:hover::after {
+  left: 150%;
+}
+
+/* SEÇÕES */
+.servicos, .local, .prova {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* CARDS */
+.cards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.card {
+  background: #1a1a1a;
+  padding: 25px;
+  border-radius: 12px;
+  width: 220px;
+  transition: transform 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card h3 {
+  color: #d4af37;
+  margin-bottom: 10px;
+}
+
+/* WHATSAPP FLOAT */
+.whatsapp-float {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #25d366;
+  padding: 15px;
+  border-radius: 50%;
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+  z-index: 1000;
+  transition: transform 0.3s;
+}
+
+.whatsapp-float:hover {
+  transform: scale(1.1);
+}
+
+/* AGENDAMENTO */
+.agendamento {
+  padding: 80px 20px 40px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.agendamento h2 {
+  color: #d4af37;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #d4af37;
+}
+
+select, input[type="date"], input[type="text"], input[type="tel"] {
+  width: 100%;
+  padding: 14px;
+  background: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+}
+
+.time-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.time-slot {
+  background: #1a1a1a;
+  padding: 14px;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: bold;
+}
+
+.time-slot:hover {
+  background: #d4af37;
+  color: black;
+}
+
+.time-slot.selected {
+  background: #f1c40f;
+  color: black;
+  transform: scale(1.05);
+}
+
+.success-message {
+  background: #25d366;
+  color: black;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  margin: 30px 0;
+}
+
+/* FADE ANIMATION */
+.fade {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s ease;
+}
+
+.fade.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .cards {
+    flex-direction: column;
+    align-items: center;
+  }
+  .card {
+    width: 90%;
+  }
+  .time-slots {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  }
+}

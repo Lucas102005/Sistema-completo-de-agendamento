@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendamento - MSAS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="intro">
+    <h1>Sistema de Agendamento</h1>
+  </div>
+
+  <section class="agendamento">
+    <h2>Agende seu horário</h2>
+    <p>Escolha o serviço, o dia e o horário disponível</p>
+
+    <div class="form-group">
+      <label>Serviço</label>
+      <select id="service">
+        <option value="Corte Masculino">✂️ Corte Masculino - R$30</option>
+        <option value="Barba">🧔 Barba - R$20</option>
+        <option value="Corte + Barba">✨ Corte + Barba - R$45</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Próximos dias disponíveis</label>
+      <div id="dayList" class="time-slots" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));"></div>
+    </div>
+
+    <div id="timeContainer" style="display:none;">
+      <label>Horários disponíveis</label>
+      <div id="timeSlots" class="time-slots"></div>
+    </div>
+
+    <div id="customerForm" style="display:none; margin-top:30px;">
+      <div class="form-group">
+        <label>Seu nome completo</label>
+        <input type="text" id="name" placeholder="Digite seu nome completo" required>
+      </div>
+      <div class="form-group">
+        <label>Telefone (com DDD)</label>
+        <input type="tel" id="phone" placeholder="(14) 99999-9999" maxlength="15" onkeypress="return onlyNumbers(event)" oninput="formatPhone(this)" required>
+      </div>
+      <button onclick="confirmBooking()" class="btn"><span>✅ Confirmar Agendamento</span></button>
+    </div>
+
+    <div id="successMessage" class="success-message" style="display:none;">
+      <h3>✅ Agendamento realizado com sucesso!</h3>
+      <p id="bookingDetails"></p>
+      <a href="#" id="whatsLink" target="_blank" class="btn" style="margin-top:15px;">
+        <span>📱 Abrir WhatsApp</span>
+      </a>
+      <a href="index.html" class="btn" style="margin-top:15px;">
+        <span>🏠 Voltar à home</span>
+      </a>
+    </div>
+
+    <a href="index.html" class="btn" style="margin-top:40px;"><span>⬅ Voltar</span></a>
+  </section>
+
+  <script>
+    // Endpoint para CRIAR agendamento (público, continua igual)
+    const BOOKINGS_URL = 'http://localhost:3000/api/bookings';
+    // Endpoint público NOVO: só devolve {date, time} ocupados, sem nomes/telefones de outros clientes
+    const AVAILABILITY_URL = 'http://localhost:3000/api/availability';
+    const SEU_NUMERO = "5514997057219";
+    const times = ["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30"];
+
+    let selectedDate = null;
+    let selectedTime = null;
+
+    function formatDateBR(dateStr) {
+      const date = new Date(dateStr);
+      const options = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' };
+      return date.toLocaleDateString('pt-BR', options)
+        .replace(/^\w/, c => c.toUpperCase())
+        .replace(',', '');
+    }
+
+    function getNext10Days() {
+      const days = [];
+      const today = new Date();
+      for (let i = 1; i < 10; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        days.push(d.toISOString().split('T')[0]);
+      }
+      return days;
+    }
+
+    // Busca só {date, time} — não expõe nome/telefone de outros clientes
+    async function fetchAvailability(from, to) {
+      const response = await fetch(`${AVAILABILITY_URL}?from=${from}&to=${to}`);
+      return response.json();
+    }
+
+    async function renderDayList() {
+      const container = document.getElementById('dayList');
+      container.innerHTML = '<div style="text-align:center; padding:20px;">Carregando dias...</div>';
+
+      const days = getNext10Days();
+      const bookings = await fetchAvailability(days[0], days[days.length - 1]);
+      const bookedTimesByDate = {};
+      bookings.forEach(b => {
+        if (!bookedTimesByDate[b.date]) bookedTimesByDate[b.date] = [];
+        bookedTimesByDate[b.date].push(b.time);
+      });
+
+      container.innerHTML = '';
+      days.forEach(date => {
+        const div = document.createElement('div');
+        div.className = 'time-slot';
+        div.style.fontSize = '15px';
+        div.textContent = formatDateBR(date);
+        div.onclick = () => selectDay(date, div, bookedTimesByDate);
+        container.appendChild(div);
+      });
+    }
+
+    function selectDay(date, element, bookedTimesByDate) {
+      document.querySelectorAll('#dayList .time-slot').forEach(el => el.classList.remove('selected'));
+      element.classList.add('selected');
+      selectedDate = date;
+      document.getElementById('timeContainer').style.display = 'block';
+      renderTimeSlots(date, bookedTimesByDate[date] || []);
+      document.getElementById('customerForm').style.display = 'none';
+    }
+
+    async function renderTimeSlots(date, bookedTimes) {
+      const container = document.getElementById('timeSlots');
+      container.innerHTML = '';
+
+      const available = times.filter(t => !bookedTimes.includes(t));
+
+      if (available.length === 0) {
+        container.innerHTML = `<p style="color:#f1c40f; grid-column:1/-1; text-align:center;">📅 Sem horários disponíveis neste dia.</p>`;
+        return;
+      }
+
+      available.forEach(time => {
+        const btn = document.createElement('div');
+        btn.className = 'time-slot';
+        btn.textContent = time;
+        btn.onclick = () => {
+          document.querySelectorAll('#timeSlots .time-slot').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedTime = time;
+          document.getElementById('customerForm').style.display = 'block';
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    async function confirmBooking() {
+      const serviceSelect = document.getElementById('service');
+      const service = serviceSelect.value; // valor limpo: "Corte Masculino", "Barba" ou "Corte + Barba"
+      const serviceLabel = serviceSelect.options[serviceSelect.selectedIndex].text; // texto com preço, só pra exibir
+      const name = document.getElementById('name').value.trim();
+      const phoneInput = document.getElementById('phone').value.trim();
+
+      if (!selectedDate || !selectedTime || !name || !phoneInput) {
+        alert("❌ Preencha todos os campos obrigatórios!");
+        return;
+      }
+
+      let phoneNumbers = phoneInput.replace(/\D/g, '');
+      if (phoneNumbers.length === 11) {
+        phoneNumbers = '55' + phoneNumbers;
+      } else if (phoneNumbers.length !== 13) {
+        alert("📞 Telefone inválido! Use o formato com DDD. Ex: (14) 99999-9999");
+        return;
+      }
+
+      const newBooking = {
+        service,
+        date: selectedDate,
+        time: selectedTime,
+        name,
+        phone: phoneNumbers
+        // status não é mais enviado pelo cliente — o backend sempre cria como "pendente"
+      };
+
+      try {
+        const response = await fetch(BOOKINGS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newBooking)
+        });
+
+        if (response.status === 409) {
+          alert("⚠️ Este horário acabou de ser ocupado. Por favor, escolha outro horário.");
+          const freshBookings = await fetchAvailability(selectedDate, selectedDate);
+          const bookedTimes = freshBookings.filter(b => b.date === selectedDate).map(b => b.time);
+          renderTimeSlots(selectedDate, bookedTimes);
+          return;
+        }
+
+        if (!response.ok) throw new Error('Erro ao agendar');
+
+        document.getElementById('successMessage').style.display = 'block';
+        document.getElementById('bookingDetails').innerHTML = `
+          <strong>${serviceLabel}</strong><br>
+          📅 ${formatDateBR(selectedDate)}<br>
+          ⏰ ${selectedTime}<br>
+          👤 ${name}<br>
+          📞 ${phoneInput}<br>
+          <em style="color:#f1c40f;">Aguardando confirmação do estabelecimento.</em>
+        `;
+
+        const messageToOwner = encodeURIComponent(
+          `🆕 *NOVO AGENDAMENTO (pendente de aceite)!*\n\n` +
+          `✂️ Serviço: *${serviceLabel}*\n` +
+          `📅 Data: *${formatDateBR(selectedDate)}*\n` +
+          `⏰ Horário: *${selectedTime}*\n` +
+          `👤 Cliente: *${name}*\n` +
+          `📞 Telefone: *${phoneInput}*\n\n` +
+          `✅ Acesse o painel para aceitar ou recusar este agendamento.`
+        );
+
+        const linkToOwner = `https://wa.me/${SEU_NUMERO}?text=${messageToOwner}`;
+        const whatsBtn = document.getElementById('whatsLink');
+        whatsBtn.href = linkToOwner;
+
+        setTimeout(() => {
+          window.open(linkToOwner, '_blank');
+        }, 500);
+
+      } catch (error) {
+        alert('❌ Erro ao realizar agendamento: ' + error.message);
+      }
+    }
+
+    window.addEventListener("load", () => {
+      renderDayList();
+      const intro = document.getElementById("intro");
+      setTimeout(() => intro.classList.add("shrink"), 1000);
+    });
+
+    function onlyNumbers(evt) {
+      const charCode = (evt.which) ? evt.which : evt.keyCode;
+      if (charCode > 31 && (charCode < 48 || charCode > 57)) return false;
+      return true;
+    }
+
+    function formatPhone(input) {
+      let value = input.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.substring(0, 11);
+      if (value.length <= 2) {
+        input.value = value.length ? `(${value}` : '';
+      } else if (value.length <= 7) {
+        input.value = `(${value.slice(0,2)}) ${value.slice(2)}`;
+      } else {
+        input.value = `(${value.slice(0,2)}) ${value.slice(2,7)}-${value.slice(7)}`;
+      }
+    }
+  </script>
+</body>
+</html>

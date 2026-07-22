@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loja - MSAS</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .produtos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
+    .produto-card { background: #1a1a1a; border-radius: 10px; padding: 16px; text-align: center; }
+    .produto-card h4 { margin: 0 0 6px; color: white; }
+    .produto-card .preco { color: #d4af37; font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+    .produto-card .disp { color: #888; font-size: 13px; margin-bottom: 12px; }
+    .qtd-controle { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 10px; }
+    .qtd-controle button { width: 32px; height: 32px; border: none; border-radius: 6px; background: #333; color: white; cursor: pointer; font-size: 16px; }
+    .qtd-controle span { min-width: 20px; text-align: center; font-weight: bold; }
+    #carrinhoResumo { background: #1a1a1a; border-radius: 10px; padding: 16px; margin: 24px 0; }
+    #carrinhoResumo.vazio { color: #666; text-align: center; }
+    .item-carrinho { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #2a2a2a; font-size: 14px; }
+    #totalCarrinho { text-align: right; font-size: 20px; color: #d4af37; font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <div id="intro">
+    <h1>Loja</h1>
+  </div>
+
+  <section class="agendamento">
+    <h2>Nossos produtos</h2>
+    <p>Escolha os produtos e finalize seu pedido</p>
+
+    <div id="produtosGrid" class="produtos-grid">
+      <div style="grid-column:1/-1; text-align:center; color:#888;">Carregando produtos...</div>
+    </div>
+
+    <div id="carrinhoResumo" class="vazio">Seu carrinho está vazio.</div>
+
+    <div id="customerForm" style="display:none; margin-top:20px;">
+      <div class="form-group">
+        <label>Seu nome completo</label>
+        <input type="text" id="name" placeholder="Digite seu nome completo" required>
+      </div>
+      <div class="form-group">
+        <label>Telefone (com DDD)</label>
+        <input type="tel" id="phone" placeholder="(14) 99999-9999" maxlength="15" onkeypress="return onlyNumbers(event)" oninput="formatPhone(this)" required>
+      </div>
+      <button onclick="confirmOrder()" class="btn"><span>✅ Finalizar Pedido</span></button>
+    </div>
+
+    <div id="successMessage" class="success-message" style="display:none;">
+      <h3>✅ Pedido realizado com sucesso!</h3>
+      <p id="orderDetails"></p>
+      <a href="#" id="whatsLink" target="_blank" class="btn" style="background:#25d366; color:white; margin-top:15px;"><span>📱 Abrir WhatsApp</span></a>
+      <a href="index.html" class="btn" style="margin-top:15px;"><span>🏠 Voltar à home</span></a>
+    </div>
+
+    <a href="index.html" class="btn" style="margin-top:40px;"><span>⬅ Voltar</span></a>
+  </section>
+
+  <script>
+    const PRODUCTS_URL = 'http://localhost:3000/api/store/products';
+    const ORDERS_URL = 'http://localhost:3000/api/orders';
+    const SEU_NUMERO = "5514997057219";
+
+    let produtosDisponiveis = [];
+    const carrinho = {}; // { product_id: quantidade }
+
+    async function carregarProdutos() {
+      const grid = document.getElementById('produtosGrid');
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#888;">Carregando produtos...</div>';
+
+      try {
+        const res = await fetch(PRODUCTS_URL);
+        produtosDisponiveis = await res.json();
+
+        if (produtosDisponiveis.length === 0) {
+          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#888;">Nenhum produto disponível no momento.</div>';
+          return;
+        }
+
+        grid.innerHTML = '';
+
+        produtosDisponiveis.forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'produto-card';
+          card.innerHTML = `
+            ${p.image_url ? `<img src="${p.image_url}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; margin-bottom:12px;" alt="${p.name}">` : '<div style="height:160px; background:#222; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; justify-content:center; color:#555;">Sem imagem</div>'}
+            <h4>${p.name}</h4>
+            <div class="preco">R$ ${p.price.toFixed(2)}</div>
+            <div class="disp">${p.stock} disponível${p.stock > 1 ? 'is' : ''}</div>
+            <div class="qtd-controle">
+              <button onclick="alterarQtd(${p.id}, -1)">−</button>
+              <span id="qtd-${p.id}">0</span>
+              <button onclick="alterarQtd(${p.id}, 1)">+</button>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (e) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f1c40f;">Erro ao carregar produtos.</div>';
+      }
+    }
+
+    function alterarQtd(productId, delta) {
+      const produto = produtosDisponiveis.find(p => p.id === productId);
+      if (!produto) return;
+
+      const atual = carrinho[productId] || 0;
+      const novo = Math.max(0, Math.min(produto.stock, atual + delta));
+      carrinho[productId] = novo;
+
+      document.getElementById(`qtd-${productId}`).textContent = novo;
+      renderCarrinho();
+    }
+
+    function renderCarrinho() {
+      const resumo = document.getElementById('carrinhoResumo');
+      const itens = Object.entries(carrinho).filter(([, qtd]) => qtd > 0);
+
+      if (itens.length === 0) {
+        resumo.className = 'vazio';
+        resumo.innerHTML = 'Seu carrinho está vazio.';
+        document.getElementById('customerForm').style.display = 'none';
+        return;
+      }
+
+      resumo.className = '';
+      let total = 0;
+      let html = '';
+      itens.forEach(([id, qtd]) => {
+        const produto = produtosDisponiveis.find(p => p.id === Number(id));
+        const subtotal = produto.price * qtd;
+        total += subtotal;
+        html += `<div class="item-carrinho"><span>${produto.name} x${qtd}</span><span>R$ ${subtotal.toFixed(2)}</span></div>`;
+      });
+      html += `<div id="totalCarrinho">Total: R$ ${total.toFixed(2)}</div>`;
+      resumo.innerHTML = html;
+
+      document.getElementById('customerForm').style.display = 'block';
+    }
+
+    async function confirmOrder() {
+      const name = document.getElementById('name').value.trim();
+      const phoneInput = document.getElementById('phone').value.trim();
+      const itens = Object.entries(carrinho)
+        .filter(([, qtd]) => qtd > 0)
+        .map(([product_id, quantity]) => ({ product_id: Number(product_id), quantity }));
+
+      if (!name || !phoneInput || itens.length === 0) {
+        alert('❌ Preencha seus dados e escolha ao menos um produto.');
+        return;
+      }
+
+      let phoneNumbers = phoneInput.replace(/\D/g, '');
+      if (phoneNumbers.length === 11) {
+        phoneNumbers = '55' + phoneNumbers;
+      } else if (phoneNumbers.length !== 13) {
+        alert('📞 Telefone inválido! Use o formato com DDD. Ex: (14) 99999-9999');
+        return;
+      }
+
+      try {
+        const response = await fetch(ORDERS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone: phoneNumbers, items: itens }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 409) {
+          alert(`⚠️ ${data.error}`);
+          carregarProdutos();
+          return;
+        }
+        if (!response.ok) throw new Error(data.error || 'Erro ao criar pedido');
+
+        const resumoTexto = itens.map(i => {
+          const p = produtosDisponiveis.find(pr => pr.id === i.product_id);
+          return `${p.name} x${i.quantity}`;
+        }).join(', ');
+
+        document.getElementById('successMessage').style.display = 'block';
+        document.getElementById('orderDetails').innerHTML = `
+          <strong>${resumoTexto}</strong><br>
+          💰 Total: R$ ${data.total.toFixed(2)}<br>
+          👤 ${name}<br>
+          📞 ${phoneInput}<br>
+          <em style="color:#f1c40f;">Aguardando confirmação do estabelecimento.</em>
+        `;
+
+        const messageToOwner = encodeURIComponent(
+          `🛒 *NOVO PEDIDO (pendente de aceite)!*\n\n` +
+          `📦 Itens: *${resumoTexto}*\n` +
+          `💰 Total: *R$ ${data.total.toFixed(2)}*\n` +
+          `👤 Cliente: *${name}*\n` +
+          `📞 Telefone: *${phoneInput}*\n\n` +
+          `✅ Acesse o painel para aceitar ou recusar este pedido.`
+        );
+
+        const linkToOwner = `https://wa.me/${SEU_NUMERO}?text=${messageToOwner}`;
+        document.getElementById('whatsLink').href = linkToOwner;
+        setTimeout(() => window.open(linkToOwner, '_blank'), 500);
+
+      } catch (error) {
+        alert('❌ Erro ao realizar pedido: ' + error.message);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      carregarProdutos();
+      const intro = document.getElementById('intro');
+      setTimeout(() => intro.classList.add('shrink'), 1000);
+    });
+
+    function onlyNumbers(evt) {
+      const charCode = (evt.which) ? evt.which : evt.keyCode;
+      if (charCode > 31 && (charCode < 48 || charCode > 57)) return false;
+      return true;
+    }
+
+    function formatPhone(input) {
+      let value = input.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.substring(0, 11);
+      if (value.length <= 2) {
+        input.value = value.length ? `(${value}` : '';
+      } else if (value.length <= 7) {
+        input.value = `(${value.slice(0,2)}) ${value.slice(2)}`;
+      } else {
+        input.value = `(${value.slice(0,2)}) ${value.slice(2,7)}-${value.slice(7)}`;
+      }
+    }
+  </script>
+</body>
+</html>

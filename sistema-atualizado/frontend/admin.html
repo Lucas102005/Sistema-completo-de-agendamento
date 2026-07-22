@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial; background: #0d0d0d; color: #eee; margin: 0; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: #1a1a1a; border-bottom: 1px solid #333; }
+    header h1 { font-size: 18px; margin: 0; color: #d4af37; }
+    #logoutBtn { background: transparent; border: 1px solid #555; color: #ccc; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+
+    nav { display: flex; gap: 4px; padding: 12px 24px 0; background: #1a1a1a; }
+    nav button { background: #0d0d0d; border: 1px solid #333; color: #aaa; padding: 10px 18px; border-radius: 8px 8px 0 0; cursor: pointer; }
+    nav button.active { background: #0d0d0d; color: #d4af37; border-bottom: 2px solid #d4af37; font-weight: bold; }
+
+    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #2a2a2a; font-size: 14px; }
+    th { color: #d4af37; }
+
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .badge.pendente { background: #4a3b00; color: #ffd166; }
+    .badge.confirmado { background: #14361f; color: #25d366; }
+    .badge.recusado { background: #3a1414; color: #ff6b6b; }
+    .badge.concluido { background: #12324a; color: #4fc3f7; }
+    .badge.cancelado { background: #2a2a2a; color: #888; }
+
+    button.acao { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; margin-right: 4px; font-size: 13px; }
+    .btn-aceitar { background: #25d366; color: black; }
+    .btn-recusar { background: #ff6b6b; color: black; }
+    .btn-concluir { background: #4fc3f7; color: black; }
+    .btn-editar { background: #444; color: white; }
+    .btn-excluir { background: #2a2a2a; color: #ff6b6b; border: 1px solid #ff6b6b; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 16px 0; }
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 18px; }
+    .card .valor { font-size: 26px; font-weight: bold; color: #d4af37; }
+    .card .label { font-size: 13px; color: #999; margin-top: 4px; }
+
+    .form-inline { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; align-items: end; }
+    .form-inline > div { display: flex; flex-direction: column; }
+    .form-inline label { font-size: 12px; color: #999; margin-bottom: 4px; }
+    input, select { padding: 9px; background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 6px; }
+    .filtros { display: flex; gap: 8px; margin-bottom: 12px; }
+    .filtros select, .filtros input { padding: 8px; }
+
+    #loginGate { position: fixed; inset: 0; background: #0d0d0d; display: flex; align-items: center; justify-content: center; color: #999; }
+    img { max-width: 80px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <div id="loginGate">Verificando acesso...</div>
+
+  <div id="app" style="display:none;">
+    <header>
+      <h1>📋 Painel Admin — <span id="userLabel"></span></h1>
+      <button id="logoutBtn" onclick="logout()">Sair</button>
+    </header>
+
+    <nav>
+      <button class="tab-btn active" data-tab="agendamentos" onclick="switchTab('agendamentos')">Agendamentos</button>
+      <button class="tab-btn" data-tab="vendas" onclick="switchTab('vendas')">Vendas</button>
+      <button class="tab-btn" data-tab="estoque" onclick="switchTab('estoque')">Estoque</button>
+      <button class="tab-btn" data-tab="financeiro" onclick="switchTab('financeiro')">Financeiro</button>
+    </nav>
+
+    <main>
+      <!-- ===================== AGENDAMENTOS ===================== -->
+      <section id="tab-agendamentos" class="tab active">
+        <div class="filtros">
+          <select id="filtroStatus" onchange="loadBookings()">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="concluido">Concluído</option>
+            <option value="recusado">Recusado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <input type="date" id="filtroData" onchange="loadBookings()">
+          <button class="acao btn-editar" onclick="document.getElementById('filtroData').value=''; document.getElementById('filtroStatus').value=''; loadBookings();">Limpar filtros</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th><th>Hora</th><th>Serviço</th><th>Cliente</th><th>Telefone</th><th>Status</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="bookingsBody"></tbody>
+        </table>
+      </section>
+
+      <!-- ===================== VENDAS (pedidos da loja) ===================== -->
+      <section id="tab-vendas" class="tab">
+        <div class="filtros">
+          <select id="filtroStatusVendas" onchange="loadOrders()">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="concluido">Concluído</option>
+            <option value="recusado">Recusado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Itens</th><th>Total</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </section>
+
+      <!-- ===================== ESTOQUE ===================== -->
+      <section id="tab-estoque" class="tab">
+        <div class="form-inline">
+          <div><label>Produto</label><input type="text" id="prodName" placeholder="Nome"></div>
+          <div><label>Preço (R$)</label><input type="number" id="prodPrice" step="0.01"></div>
+          <div><label>Estoque inicial</label><input type="number" id="prodStock" value="10"></div>
+          
+          <div>
+            <label>Imagem</label>
+            <input type="file" id="prodImage" accept="image/*">
+            <small style="display:block; color:#888; margin-top:4px;">Ou use uma imagem já enviada (ex: /uploads/imagem.jpg)</small>
+          </div>
+          
+          <button class="acao btn-aceitar" onclick="addProduct()">+ Adicionar Produto</button>
+        </div>
+
+        <table>
+          <thead><tr><th>Imagem</th><th>Produto</th><th>Preço</th><th>Estoque</th><th>Ações</th></tr></thead>
+          <tbody id="productsBody"></tbody>
+        </table>
+      </section>
+
+      <!-- ===================== FINANCEIRO ===================== -->
+      <section id="tab-financeiro" class="tab">
+        <div class="filtros">
+          <div><label style="font-size:12px;color:#999;">De</label><br><input type="date" id="finFrom"></div>
+          <div><label style="font-size:12px;color:#999;">Até</label><br><input type="date" id="finTo"></div>
+          <button class="acao btn-editar" style="align-self:flex-end;" onclick="loadFinanceiro()">Filtrar</button>
+        </div>
+
+        <div class="cards" id="finCards"></div>
+
+        <h3 style="color:#d4af37;">Faturamento por serviço</h3>
+        <table><thead><tr><th>Serviço</th><th>Total</th></tr></thead><tbody id="finPorServico"></tbody></table>
+
+        <h3 style="color:#d4af37;">Faturamento por produto</h3>
+        <table><thead><tr><th>Produto</th><th>Total</th></tr></thead><tbody id="finPorProduto"></tbody></table>
+
+        <h3 style="color:#d4af37;">Faturamento por dia</h3>
+        <table><thead><tr><th>Data</th><th>Total</th></tr></thead><tbody id="finPorDia"></tbody></table>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('admin_token');
+    const username = localStorage.getItem('admin_username');
+
+    if (!token) {
+      window.location.href = 'login.html';
+    } else {
+      document.getElementById('userLabel').textContent = username || '';
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      loadBookings();
+    }
+
+    function logout() {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_username');
+      window.location.href = 'login.html';
+    }
+
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...(options.headers || {}),
+        },
+      });
+      if (res.status === 401) {
+        logout();
+        throw new Error('Sessão expirada');
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro na requisição');
+      return data;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+      if (tab === 'vendas') loadOrders();
+      if (tab === 'estoque') loadProducts();
+      if (tab === 'financeiro') loadFinanceiro();
+    }
+
+    // ---------- AGENDAMENTOS ----------
+    async function loadBookings() {
+      const status = document.getElementById('filtroStatus').value;
+      const date = document.getElementById('filtroData').value;
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      if (date) params.append('date', date);
+
+      try {
+        const bookings = await apiFetch(`/api/admin/bookings?${params}`);
+        const tbody = document.getElementById('bookingsBody');
+        tbody.innerHTML = '';
+
+        bookings.forEach(b => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${b.date}</td>
+            <td>${b.time}</td>
+            <td>${b.service}<br><small style="color:#888;">R$ ${b.service_price.toFixed(2)}</small></td>
+            <td>${b.name}</td>
+            <td>${b.phone}</td>
+            <td><span class="badge ${b.status}">${b.status}</span></td>
+            <td id="acoes-${b.id}"></td>
+          `;
+          tbody.appendChild(tr);
+          renderAcoes(b);
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function renderAcoes(b) {
+      const cell = document.getElementById(`acoes-${b.id}`);
+      let html = '';
+      if (b.status === 'pendente') {
+        html += `<button class="acao btn-aceitar" onclick="setStatus(${b.id}, 'confirmado')">Aceitar</button>`;
+        html += `<button class="acao btn-recusar" onclick="setStatus(${b.id}, 'recusado')">Recusar</button>`;
+      }
+      if (b.status === 'confirmado') {
+        html += `<button class="acao btn-concluir" onclick="setStatus(${b.id}, 'concluido')">Concluir</button>`;
+        html += `<button class="acao btn-recusar" onclick="setStatus(${b.id}, 'cancelado')">Cancelar</button>`;
+      }
+      html += `<button class="acao btn-editar" onclick="editBooking(${b.id}, '${b.service}', '${b.date}', '${b.time}', '${b.name.replace(/'/g, "\\'")}', '${b.phone}')">Editar</button>`;
+      html += `<button class="acao btn-excluir" onclick="deleteBooking(${b.id})">Excluir</button>`;
+      cell.innerHTML = html;
+    }
+
+    async function setStatus(id, status) {
+      try {
+        await apiFetch(`/api/admin/bookings/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status }),
+        });
+        loadBookings();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function editBooking(id, service, date, time, name, phone) {
+      const novaData = prompt('Data (YYYY-MM-DD):', date) || date;
+      const novaHora = prompt('Hora (HH:MM):', time) || time;
+      const novoNome = prompt('Nome do cliente:', name) || name;
+      const novoTel = prompt('Telefone:', phone) || phone;
+
+      try {
+        await apiFetch(`/api/admin/bookings/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ service, date: novaData, time: novaHora, name: novoNome, phone: novoTel }),
+        });
+        loadBookings();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function deleteBooking(id) {
+      if (!confirm('Excluir este agendamento?')) return;
+      try {
+        await apiFetch(`/api/admin/bookings/${id}`, { method: 'DELETE' });
+        loadBookings();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // ---------- VENDAS (pedidos da loja) ----------
+    async function loadOrders() {
+      const status = document.getElementById('filtroStatusVendas').value;
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+
+      try {
+        const orders = await apiFetch(`/api/admin/orders?${params}`);
+        const tbody = document.getElementById('ordersBody');
+        tbody.innerHTML = '';
+
+        orders.forEach(o => {
+          const itensTexto = o.items.map(i => `${i.product_name} x${i.quantity}`).join(', ');
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${new Date(o.created_at).toLocaleString('pt-BR')}</td>
+            <td>${o.name}</td>
+            <td>${o.phone}</td>
+            <td>${itensTexto}</td>
+            <td>R$ ${o.total.toFixed(2)}</td>
+            <td><span class="badge ${o.status}">${o.status}</span></td>
+            <td id="acoes-order-${o.id}"></td>
+          `;
+          tbody.appendChild(tr);
+          renderAcoesOrder(o);
+        });
+
+        if (orders.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="color:#888; text-align:center;">Nenhum pedido encontrado.</td></tr>';
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function renderAcoesOrder(o) {
+      const cell = document.getElementById(`acoes-order-${o.id}`);
+      let html = '';
+      if (o.status === 'pendente') {
+        html += `<button class="acao btn-aceitar" onclick="setOrderStatus(${o.id}, 'confirmado')">Aceitar</button>`;
+        html += `<button class="acao btn-recusar" onclick="setOrderStatus(${o.id}, 'recusado')">Recusar</button>`;
+      }
+      if (o.status === 'confirmado') {
+        html += `<button class="acao btn-concluir" onclick="setOrderStatus(${o.id}, 'concluido')">Concluir</button>`;
+        html += `<button class="acao btn-recusar" onclick="setOrderStatus(${o.id}, 'cancelado')">Cancelar</button>`;
+      }
+      html += `<button class="acao btn-excluir" onclick="deleteOrder(${o.id})">Excluir</button>`;
+      cell.innerHTML = html;
+    }
+
+    async function setOrderStatus(id, status) {
+      try {
+        await apiFetch(`/api/admin/orders/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status }),
+        });
+        loadOrders();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function deleteOrder(id) {
+      if (!confirm('Excluir este pedido?')) return;
+      try {
+        await apiFetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
+        loadOrders();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // ---------- ESTOQUE ----------
+    async function loadProducts() {
+      try {
+        const products = await apiFetch('/api/admin/products');
+        const tbody = document.getElementById('productsBody');
+        tbody.innerHTML = '';
+        products.forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${p.name}</td>
+            <td>R$ ${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td>
+              <button class="acao btn-editar" onclick="editProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price}, ${p.stock})">Editar</button>
+              <button class="acao btn-excluir" onclick="deleteProduct(${p.id})">Excluir</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function addProduct() {
+      const name = document.getElementById('prodName').value.trim();
+      const price = parseFloat(document.getElementById('prodPrice').value);
+      const stock = parseInt(document.getElementById('prodStock').value, 10);
+      const fileInput = document.getElementById('prodImage');
+
+      if (!name || isNaN(price)) return alert('Preencha nome e preço.');
+
+      let imageUrl = null;
+
+      // Se selecionou arquivo, faz upload
+      if (fileInput.files.length > 0) {
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+
+        try {
+          const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+          const uploadData = await uploadRes.json();
+          imageUrl = uploadData.image_url;
+        } catch (e) {
+          alert('Erro ao fazer upload da imagem');
+        }
+      }
+
+      try {
+        await apiFetch('/api/admin/products', {
+          method: 'POST',
+          body: JSON.stringify({ name, price, stock: isNaN(stock) ? 0 : stock, image_url: imageUrl }),
+        });
+
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        document.getElementById('prodStock').value = '10';
+        document.getElementById('prodImage').value = '';
+
+        loadProducts();
+        alert('Produto cadastrado com sucesso!');
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function editProduct(id, name, price, stock) {
+      const novoNome = prompt('Nome do produto:', name) || name;
+      const novoPreco = parseFloat(prompt('Preço:', price)) || price;
+      const novoEstoque = parseInt(prompt('Quantidade em estoque:', stock), 10);
+
+      try {
+        await apiFetch(`/api/admin/products/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: novoNome, price: novoPreco, stock: isNaN(novoEstoque) ? stock : novoEstoque }),
+        });
+        loadProducts();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('Excluir este produto?')) return;
+      try {
+        await apiFetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+        loadProducts();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // ---------- FINANCEIRO ----------
+    async function loadFinanceiro() {
+      const from = document.getElementById('finFrom').value;
+      const to = document.getElementById('finTo').value;
+      const params = new URLSearchParams();
+      if (from && to) { params.append('from', from); params.append('to', to); }
+
+      try {
+        const d = await apiFetch(`/api/admin/financeiro?${params}`);
+
+        document.getElementById('finCards').innerHTML = `
+          <div class="card"><div class="valor">R$ ${d.totalFaturado.toFixed(2)}</div><div class="label">Faturamento total</div></div>
+          <div class="card"><div class="valor">R$ ${d.faturamentoServicos.toFixed(2)}</div><div class="label">Serviços (${d.totalAtendimentos} atendimentos)</div></div>
+          <div class="card"><div class="valor">R$ ${d.faturamentoProdutos.toFixed(2)}</div><div class="label">Produtos (${d.totalPedidos} pedidos)</div></div>
+          <div class="card"><div class="valor">${d.pendentesAguardandoAceite}</div><div class="label">Pendentes aguardando aceite</div></div>
+        `;
+
+        const porServicoBody = document.getElementById('finPorServico');
+        porServicoBody.innerHTML = Object.entries(d.porServico)
+          .map(([nome, total]) => `<tr><td>${nome}</td><td>R$ ${total.toFixed(2)}</td></tr>`).join('') 
+          || '<tr><td colspan="2" style="color:#888;">Sem dados no período.</td></tr>';
+
+        const porProdutoBody = document.getElementById('finPorProduto');
+        porProdutoBody.innerHTML = Object.entries(d.porProduto || {})
+          .map(([nome, total]) => `<tr><td>${nome}</td><td>R$ ${total.toFixed(2)}</td></tr>`).join('')
+          || '<tr><td colspan="2" style="color:#888;">Sem dados no período.</td></tr>';
+
+        const porDiaBody = document.getElementById('finPorDia');
+        porDiaBody.innerHTML = Object.entries(d.porDia)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([data, total]) => `<tr><td>${data}</td><td>R$ ${total.toFixed(2)}</td></tr>`).join('')
+          || '<tr><td colspan="2" style="color:#888;">Sem dados no período.</td></tr>';
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+  </script>
+</body>
+</html>
