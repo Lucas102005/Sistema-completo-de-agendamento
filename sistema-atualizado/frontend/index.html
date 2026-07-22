@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSAS - Agendamento</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- INTRO -->
+  <div id="intro">
+    <h1>Sistema de Agendamento de Serviços</h1>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <h1>Agende seu horário de forma rápida e prática</h1>
+    <p>Escolha o serviço, selecione o dia e confirme seu agendamento</p>
+    <a href="agenda.html" class="btn">
+      <span>📅 Agendar Agora</span>
+    </a>
+    <a href="loja.html" class="btn">
+      <span>🛒 Ir para Loja</span>
+    </a>
+  </section>
+
+  <!-- SERVIÇOS -->
+  <section class="servicos fade">
+    <h2>Nossos Serviços</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Corte Masculino</h3>
+        <p>R$ 30,00</p>
+      </div>
+      <div class="card">
+        <h3>Barba</h3>
+        <p>R$ 20,00</p>
+      </div>
+      <div class="card">
+        <h3>Corte + Barba</h3>
+        <p>R$ 45,00</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCAL -->
+  <section class="local fade">
+    <h2>Localização</h2>
+    <p>📍 Rua Exemplo, 123 - Centro</p>
+    <p>🕒 Segunda a Sábado: 09h às 19h</p>
+  </section>
+
+  <!-- PROVA SOCIAL -->
+  <section class="prova fade">
+    <h2>O que nossos clientes dizem</h2>
+    <p>"Excelente atendimento e profissionalismo!" - João S.</p>
+    <p>"Sempre saio satisfeito, recomendo!" - Pedro C.</p>
+  </section>
+
+  <!-- WHATSAPP -->
+  <a href="https://wa.me/5514997057219" class="whatsapp-float" target="_blank">
+    <img src="https://cdn-icons-png.flaticon.com/512/220/220236.png" width="30" alt="WhatsApp">
+  </a>
+
+  <script>
+    // Animação de scroll
+    const elements = document.querySelectorAll('.fade');
+    function showOnScroll() {
+      elements.forEach(el => {
+        const position = el.getBoundingClientRect().top;
+        if (position < window.innerHeight - 100) {
+          el.classList.add('show');
+        }
+      });
+    }
+    window.addEventListener('scroll', showOnScroll);
+    showOnScroll();
+
+    // Animação da intro
+    window.addEventListener("load", () => {
+      const intro = document.getElementById("intro");
+      setTimeout(() => intro.classList.add("shrink"), 1000);
+    });
+  </script>
+</body>
+</html>
